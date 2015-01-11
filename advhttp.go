@@ -92,3 +92,20 @@ func BearerAuth(r *http.Request) (bearerToken string) {
 	}
 	return
 }
+
+func IsJSONAnAcceptableResponse(acceptHeader string) bool {
+	if acceptHeader == "" {
+		return false
+	}
+	//Since the browser can use something like this: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+	//Acceptable content types are application/json application/* and */*
+	for _, ent := range strings.Split(acceptHeader, ",") {
+		parts := strings.Split(ent, ";")
+		if len(parts) >= 1 {
+			if parts[0] == "application/json" || parts[0] == "application/*" || parts[0] == "*/*" {
+				return true
+			}
+		}
+	}
+	return false
+}
