@@ -42,11 +42,50 @@ func (trw *ResponseWriter) Status() int {
 }
 
 func LogApache(trw *ResponseWriter, r *http.Request) string {
-	var userId string = ""
-	if r.Header.Get("User-Id") == "" {
+	remoteAddr := r.RemoteAddr
+	if remoteAddr == "" {
+		remoteAddr = "-"
+	}
+	method := r.Method
+	userId := r.Header.Get("User-Id")
+	if userId == "" {
 		userId = "-"
 	}
-	return fmt.Sprintf("%v - %v [%v] \"%v %v %v\" %v %v %v %v\n", r.RemoteAddr, userId, time.Now().UTC().Format(http.TimeFormat), r.Method, r.URL.String(), r.Proto, trw.status, trw.length, r.Referer(), r.UserAgent())
+	referer := r.Referer()
+	if referer == "" {
+		referer = "-"
+	}
+	userAgent := r.UserAgent()
+	if userAgent == "" {
+		userAgent = "-"
+	}
+	return fmt.Sprintf("%v - %v [%v] \"%v %v %v\" %v %v %v %v\n", remoteAddr, userId, time.Now().UTC().Format(http.TimeFormat), method, r.URL.String(), r.Proto, trw.status, trw.length, referer, userAgent)
+}
+
+func LogApacheWithHeader(trw *ResponseWriter, r *http.Request, url, header string) string {
+	remoteAddr := r.RemoteAddr
+	if remoteAddr == "" {
+		remoteAddr = "-"
+	}
+	method := r.Method
+	userId := r.Header.Get("User-Id")
+	if userId == "" {
+		userId = "-"
+	}
+	referer := r.Referer()
+	if referer == "" {
+		referer = "-"
+	}
+	userAgent := r.UserAgent()
+	if userAgent == "" {
+		userAgent = "-"
+	}
+	extraHeader := r.Header.Get(header)
+	if r.Header.Get(header) == "" {
+		extraHeader = "-"
+	}
+
+	return fmt.Sprintf("%v - %v [%v] \"%v %v %v\" %v %v %v %v %v", remoteAddr, userId, time.Now().UTC().Format(http.TimeFormat), method, url, r.Proto, trw.status, trw.length, referer, userAgent, extraHeader)
 }
 
 func ProcessCors(w http.ResponseWriter, r *http.Request) {

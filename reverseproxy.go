@@ -67,7 +67,12 @@ func NewGatewayReverseProxy(target *url.URL, stripListenPath bool, listenPath st
 	director := func(req *http.Request) {
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
-		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
+		path := req.URL.Path
+		//Do some hackery here if stripListenPath is true
+		if stripListenPath {
+			path = strings.Replace(req.URL.Path, listenPath, "/", 1)
+		}
+		req.URL.Path = singleJoiningSlash(target.Path, path)
 		req.Host = target.Host
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
