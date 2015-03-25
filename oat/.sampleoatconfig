@@ -1,0 +1,18 @@
+[clienta]
+	client_id=clienta
+	client_secret=blablah
+	token_endpoint=https://security.somedomain.com/oauth2/token
+	token_info_endpoint=https://security.somedomain.com/oauth2/token
+	scope=https://somedomain.com/auth/coolapi https://somedomain.com/auth/awesomeapi
+[clientb]
+	client_id=clientb
+	client_secret=blabberdyblab
+	token_endpoint=https://security.somedomain.com/oauth2/token
+	token_info_endpoint=https://security.somedomain.com/oauth2/token
+	scope=https://somedomain.com/auth/coolapi https://somedomain.com/auth/awesomeapi
+[usera]
+	username=auser
+	password=hispassword
+[userb]
+	username=buser
+	password=herpassword
