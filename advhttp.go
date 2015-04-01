@@ -1,7 +1,10 @@
 package advhttp
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -39,6 +42,42 @@ func (trw *ResponseWriter) Length() int64 {
 
 func (trw *ResponseWriter) Status() int {
 	return trw.status
+}
+
+func (trw *ResponseWriter) GetFlusher() (flusher http.Flusher, ok bool) {
+	flusher, ok = trw.w.(http.Flusher)
+	return
+}
+
+func (trw *ResponseWriter) Flush() {
+	if flusher, ok := trw.w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (trw *ResponseWriter) GetHijacker() (hijacker http.Hijacker, ok bool) {
+	hijacker, ok = trw.w.(http.Hijacker)
+	return
+}
+
+func (trw *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hijacker, ok := trw.w.(http.Hijacker); ok {
+		return hijacker.Hijack()
+	}
+	return nil, nil, errors.New("Couldn't cast responsewriter to hijacker")
+}
+
+func (trw *ResponseWriter) GetCloseNotifier() (closeNotifier http.CloseNotifier, ok bool) {
+	closeNotifier, ok = trw.w.(http.CloseNotifier)
+	return
+}
+
+func (trw *ResponseWriter) CloseNotify() <-chan bool {
+	fmt.Println("Someone is getting me")
+	if closeNotifier, ok := trw.w.(http.CloseNotifier); ok {
+		return closeNotifier.CloseNotify()
+	}
+	return nil
 }
 
 func LogApache(trw *ResponseWriter, r *http.Request) string {

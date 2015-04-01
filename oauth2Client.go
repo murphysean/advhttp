@@ -30,11 +30,6 @@ type TokenTracker struct {
 //of a oauth2 client. It will always use the client_credentials grant type to obtain the new
 //tokens from the token endpoint.
 func NewClientCredentialsTokenTracker(tokenEndpoint, tokenInfoEndpoint, client_id, client_secret string, scope []string) (tokenTracker *TokenTracker, err error) {
-	token, tokenExpires, err := GetClientCredentialsToken(tokenEndpoint, client_id, client_secret, scope)
-	if err != nil {
-		return
-	}
-
 	tokenTracker = new(TokenTracker)
 	tokenTracker.method = "client_credentials"
 	tokenTracker.tokenEndpoint = tokenEndpoint
@@ -42,8 +37,8 @@ func NewClientCredentialsTokenTracker(tokenEndpoint, tokenInfoEndpoint, client_i
 	tokenTracker.clientId = client_id
 	tokenTracker.clientSecret = client_secret
 	tokenTracker.scope = scope
-	tokenTracker.token = token
-	tokenTracker.tokenExpires = tokenExpires
+
+	tokenTracker.token, tokenTracker.tokenExpires, err = GetClientCredentialsToken(tokenEndpoint, client_id, client_secret, scope)
 
 	return
 }
@@ -55,11 +50,6 @@ func NewClientCredentialsTokenTracker(tokenEndpoint, tokenInfoEndpoint, client_i
 //invalidated or revoked special logic will need to be done (outside of this lib) to reset the
 //TokenTracker so it doesn't forever remain in a bad state.
 func NewPasswordTokenTracker(tokenEndpoint, tokenInfoEndpoint, client_id, client_secret, username, password string, scope []string) (tokenTracker *TokenTracker, err error) {
-	token, tokenExpires, refreshToken, err := GetPasswordToken(tokenEndpoint, client_id, client_secret, username, password, scope)
-	if err != nil {
-		return
-	}
-
 	tokenTracker = new(TokenTracker)
 	tokenTracker.method = "refresh"
 	tokenTracker.tokenEndpoint = tokenEndpoint
@@ -67,9 +57,8 @@ func NewPasswordTokenTracker(tokenEndpoint, tokenInfoEndpoint, client_id, client
 	tokenTracker.clientId = client_id
 	tokenTracker.clientSecret = client_secret
 	tokenTracker.scope = scope
-	tokenTracker.token = token
-	tokenTracker.tokenExpires = tokenExpires
-	tokenTracker.refreshToken = refreshToken
+
+	tokenTracker.token, tokenTracker.tokenExpires, tokenTracker.refreshToken, err = GetPasswordToken(tokenEndpoint, client_id, client_secret, username, password, scope)
 
 	return
 }
@@ -147,8 +136,6 @@ func (tt *TokenTracker) GetTokenInformation() (tokenInfo map[string]interface{},
 
 //This method uses the password grant type of oauth2 to get a token from the token endpoint.
 func GetPasswordToken(tokenEndpoint, client_id, client_secret, username, password string, scope []string) (token string, tokenExpires time.Time, refreshToken string, err error) {
-	client := &http.Client{}
-
 	toSend := &url.Values{}
 	toSend.Add("grant_type", "password")
 	toSend.Add("access_type", "offline")
@@ -164,7 +151,7 @@ func GetPasswordToken(tokenEndpoint, client_id, client_secret, username, passwor
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
 	}
@@ -196,8 +183,6 @@ func GetPasswordToken(tokenEndpoint, client_id, client_secret, username, passwor
 
 //This method uses the refresh_token grant type of oauth2 to obtain a token from the token endpoint
 func GetRefreshToken(tokenEndpoint, client_id, client_secret, refresh_token string, scope []string) (token string, tokenExpires time.Time, err error) {
-	client := &http.Client{}
-
 	toSend := &url.Values{}
 	toSend.Add("grant_type", "refresh_token")
 	toSend.Add("refresh_token", refresh_token)
@@ -211,7 +196,7 @@ func GetRefreshToken(tokenEndpoint, client_id, client_secret, refresh_token stri
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
 	}
@@ -242,8 +227,6 @@ func GetRefreshToken(tokenEndpoint, client_id, client_secret, refresh_token stri
 //This method uses the client_credentials grant_type of oauth2 to obtain a token from the token
 //endpoint.
 func GetClientCredentialsToken(tokenEndpoint, client_id, client_secret string, scope []string) (token string, tokenExpires time.Time, err error) {
-	client := &http.Client{}
-
 	toSend := &url.Values{}
 	toSend.Add("grant_type", "client_credentials")
 	toSend.Add("scope", strings.Join(scope, " "))
@@ -256,7 +239,7 @@ func GetClientCredentialsToken(tokenEndpoint, client_id, client_secret string, s
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
 	}
@@ -287,8 +270,6 @@ func GetClientCredentialsToken(tokenEndpoint, client_id, client_secret string, s
 //This method calls the token information endpoint and returns the json response as a map of
 //string to interface{} values.
 func GetTokenInformation(tokenInfoEndpoint, token string) (tokenInfo map[string]interface{}, err error) {
-	client := &http.Client{}
-
 	req, err := http.NewRequest("GET", tokenInfoEndpoint, nil)
 	if err != nil {
 		return
@@ -296,7 +277,7 @@ func GetTokenInformation(tokenInfoEndpoint, token string) (tokenInfo map[string]
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
 	}

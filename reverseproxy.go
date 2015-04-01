@@ -105,9 +105,21 @@ var hopHeaders = []string{
 }
 
 func (p *GatewayReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	transport := p.Transport
-	if transport == nil {
-		transport = http.DefaultTransport
+	closeNotifier, ok := rw.(http.CloseNotifier)
+	if !ok {
+		http.Error(rw, "Could not cast response writer to close notifier", 500)
+		return
+	}
+
+	t := p.Transport
+	if t == nil {
+		t = http.DefaultTransport
+	}
+
+	transport, ok := t.(*http.Transport)
+	if !ok {
+		http.Error(rw, "Could not cast given http.RoundTripper to http.Transport", 500)
+		return
 	}
 
 	outreq := new(http.Request)
@@ -167,33 +179,51 @@ func (p *GatewayReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 	}
 	req.Header.Set("Via", via)
 
-	res, err := transport.RoundTrip(outreq)
-	if err != nil {
-		p.logf("http: proxy error: %v", err)
-		rw.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer res.Body.Close()
+	done := make(chan bool)
 
-	for _, h := range hopHeaders {
-		res.Header.Del(h)
-	}
+	go func() {
+		defer func() {
+			done <- true
+		}()
+		res, err := transport.RoundTrip(outreq)
+		if err != nil {
+			if strings.Contains(err.Error(), "timeout") {
+				http.Error(rw, "Reverse Proxy: "+err.Error(), http.StatusGatewayTimeout)
+			} else {
+				http.Error(rw, "Reverse Proxy: "+err.Error(), http.StatusBadGateway)
+			}
+			p.logf("http: proxy error: %v", err)
+			return
+		}
+		defer res.Body.Close()
 
-	copyHeader(rw.Header(), res.Header)
-	//Process Location
-	if location := rw.Header().Get("Location"); p.StripListenPath && location != "" && strings.HasPrefix(location, "/") {
-		rw.Header().Set("Location", p.ListenPath+location[1:])
-	}
-	//Add back in via if not exists
-	if rw.Header().Get("Via") == "" {
-		rw.Header().Set("Via", via)
-	}
-	if rw.Header().Get("X-Powered-By") == "" {
-		rw.Header().Set("X-Powered-By", "Go/"+runtime.Version())
-	}
+		for _, h := range hopHeaders {
+			res.Header.Del(h)
+		}
+		rw.WriteHeader(res.StatusCode)
 
-	rw.WriteHeader(res.StatusCode)
-	p.copyResponse(rw, res.Body)
+		copyHeader(rw.Header(), res.Header)
+		//Process Location
+		if location := rw.Header().Get("Location"); p.StripListenPath && location != "" && strings.HasPrefix(location, "/") {
+			rw.Header().Set("Location", p.ListenPath+location[1:])
+		}
+		//Add back in via if not exists
+		if rw.Header().Get("Via") == "" {
+			rw.Header().Set("Via", via)
+		}
+		if rw.Header().Get("X-Powered-By") == "" {
+			rw.Header().Set("X-Powered-By", "Go/"+runtime.Version())
+		}
+
+		p.copyResponse(rw, res.Body)
+	}()
+
+	select {
+	case <-closeNotifier.CloseNotify():
+		transport.CancelRequest(outreq)
+		rw.WriteHeader(499)
+	case <-done:
+	}
 }
 
 func (p *GatewayReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
