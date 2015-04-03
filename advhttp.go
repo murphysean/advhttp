@@ -73,7 +73,6 @@ func (trw *ResponseWriter) GetCloseNotifier() (closeNotifier http.CloseNotifier,
 }
 
 func (trw *ResponseWriter) CloseNotify() <-chan bool {
-	fmt.Println("Someone is getting me")
 	if closeNotifier, ok := trw.w.(http.CloseNotifier); ok {
 		return closeNotifier.CloseNotify()
 	}
@@ -127,6 +126,7 @@ func LogApacheWithHeader(trw *ResponseWriter, r *http.Request, url, header strin
 	return fmt.Sprintf("%v - %v [%v] \"%v %v %v\" %v %v %v %v %v", remoteAddr, userId, time.Now().UTC().Format(http.TimeFormat), method, url, r.Proto, trw.status, trw.length, referer, userAgent, extraHeader)
 }
 
+//This function will write out cross origin headers so that javascript clients can call apis.
 func ProcessCors(w http.ResponseWriter, r *http.Request) {
 	//Following this flowchart: http://www.html5rocks.com/static/images/cors_server_flowchart.png
 	//Does the request have an Origin Header
@@ -162,19 +162,32 @@ func ProcessCors(w http.ResponseWriter, r *http.Request) {
 	//w.Header().Set("Access-Control-Allow-Credentials", "true")
 }
 
-func BearerAuth(r *http.Request) (bearerToken string) {
-	if values, ok := r.URL.Query()["access_token"]; ok && len(values) > 0 {
+//BearerAuth is a function that will pull an access token out of the Authorization header
+//it will return the bearer token if found, and ok will tell you whether it was able to find
+//the token or not. This function will look for the token in the query params, as well as
+//the headers.
+func BearerAuth(r *http.Request) (bearerToken string, ok bool) {
+	ok = false
+	if values, o := r.URL.Query()["access_token"]; o && len(values) > 0 {
 		bearerToken = values[0]
+		ok = true
 	} else if authorization := r.Header.Get("Authorization"); strings.HasPrefix(authorization, "Bearer ") {
 		bearerToken = r.Header.Get("Authorization")[7:]
+		ok = true
 	}
 	return
 }
 
+//This function will take in the accept header string from a inbound request and determine if
+//application/json is an acceptable response for the request. It ignores any priorities that
+//the requester has, and if they don't include an accept header it will treat it as if they
+//had just used Accept: */*
 func IsJSONAnAcceptableResponse(acceptHeader string) bool {
+	//No accept header (or empty) means */*
 	if acceptHeader == "" {
-		return false
+		return true
 	}
+
 	//Since the browser can use something like this: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 	//Acceptable content types are application/json application/* and */*
 	for _, ent := range strings.Split(acceptHeader, ",") {
