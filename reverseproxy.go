@@ -200,7 +200,6 @@ func (p *GatewayReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		for _, h := range hopHeaders {
 			res.Header.Del(h)
 		}
-		rw.WriteHeader(res.StatusCode)
 
 		copyHeader(rw.Header(), res.Header)
 		//Process Location
@@ -214,7 +213,7 @@ func (p *GatewayReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		if rw.Header().Get("X-Powered-By") == "" {
 			rw.Header().Set("X-Powered-By", "Go/"+runtime.Version())
 		}
-
+		rw.WriteHeader(res.StatusCode)
 		p.copyResponse(rw, res.Body)
 	}()
 
