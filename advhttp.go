@@ -1,8 +1,6 @@
 package advhttp
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -10,156 +8,59 @@ import (
 	"time"
 )
 
-type ResponseWriter struct {
-	w http.ResponseWriter
-
-	length int64
-	status int
-}
-
-func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
-	return &ResponseWriter{w: w, length: 0, status: 200}
-}
-
-func (trw *ResponseWriter) Header() http.Header {
-	return trw.w.Header()
-}
-
-func (trw *ResponseWriter) WriteHeader(status int) {
-	trw.status = status
-	trw.w.WriteHeader(status)
-}
-
-func (trw *ResponseWriter) Write(bytes []byte) (int, error) {
-	n, err := trw.w.Write(bytes)
-	trw.length += int64(n)
-	return n, err
-}
-
-func (trw *ResponseWriter) Length() int64 {
-	return trw.length
-}
-
-func (trw *ResponseWriter) Status() int {
-	return trw.status
-}
-
-func (trw *ResponseWriter) GetFlusher() (flusher http.Flusher, ok bool) {
-	flusher, ok = trw.w.(http.Flusher)
-	return
-}
-
-func (trw *ResponseWriter) Flush() {
-	if flusher, ok := trw.w.(http.Flusher); ok {
-		flusher.Flush()
-	}
-}
-
-func (trw *ResponseWriter) GetHijacker() (hijacker http.Hijacker, ok bool) {
-	hijacker, ok = trw.w.(http.Hijacker)
-	return
-}
-
-func (trw *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if hijacker, ok := trw.w.(http.Hijacker); ok {
-		return hijacker.Hijack()
-	}
-	return nil, nil, errors.New("Couldn't cast responsewriter to hijacker")
-}
-
-func (trw *ResponseWriter) GetCloseNotifier() (closeNotifier http.CloseNotifier, ok bool) {
-	closeNotifier, ok = trw.w.(http.CloseNotifier)
-	return
-}
-
-func (trw *ResponseWriter) CloseNotify() <-chan bool {
-	if closeNotifier, ok := trw.w.(http.CloseNotifier); ok {
-		return closeNotifier.CloseNotify()
-	}
-	return nil
+func init() {
+	DefaultCors = new(Cors)
+	DefaultCors.AllowOrigin = ""
+	DefaultCors.AllowHeaders = CorsDefaultAllowHeaders
+	DefaultCors.AllowMethods = CorsDefaultAllowMethods
+	DefaultCors.ExposeHeaders = CorsDefaultExposeHeaders
+	DefaultCors.MaxAge = CorsDefaultMaxAge
+	DefaultCors.AllowCredentials = CorsDefaultAllowCredentials
 }
 
 func LogApache(trw *ResponseWriter, r *http.Request) string {
-	remoteAddr := r.RemoteAddr
-	if remoteAddr == "" {
-		remoteAddr = "-"
-	}
-	method := r.Method
-	userId := r.Header.Get("User-Id")
-	if userId == "" {
-		userId = "-"
-	}
-	referer := r.Referer()
-	if referer == "" {
-		referer = "-"
-	}
-	userAgent := r.UserAgent()
-	if userAgent == "" {
-		userAgent = "-"
-	}
-	return fmt.Sprintf("%v - %v [%v] \"%v %v %v\" %v %v %v %v\n", remoteAddr, userId, time.Now().UTC().Format(http.TimeFormat), method, r.URL.String(), r.Proto, trw.status, trw.length, referer, userAgent)
+	return logWithOptions(trw, r, false)
 }
 
-func LogApacheWithHeader(trw *ResponseWriter, r *http.Request, url, header string) string {
-	remoteAddr := r.RemoteAddr
-	if remoteAddr == "" {
-		remoteAddr = "-"
-	}
-	method := r.Method
-	userId := r.Header.Get("User-Id")
-	if userId == "" {
-		userId = "-"
-	}
-	referer := r.Referer()
-	if referer == "" {
-		referer = "-"
-	}
-	userAgent := r.UserAgent()
-	if userAgent == "" {
-		userAgent = "-"
-	}
-	extraHeader := r.Header.Get(header)
-	if r.Header.Get(header) == "" {
-		extraHeader = "-"
-	}
-
-	return fmt.Sprintf("%v - %v [%v] \"%v %v %v\" %v %v %v %v %v", remoteAddr, userId, time.Now().UTC().Format(http.TimeFormat), method, url, r.Proto, trw.status, trw.length, referer, userAgent, extraHeader)
+func LogCommonExtended(trw *ResponseWriter, r *http.Request) string {
+	return logWithOptions(trw, r, false)
 }
 
-//This function will write out cross origin headers so that javascript clients can call apis.
-func ProcessCors(w http.ResponseWriter, r *http.Request) {
-	//Following this flowchart: http://www.html5rocks.com/static/images/cors_server_flowchart.png
-	//Does the request have an Origin Header
-	if r.Header.Get("Origin") == "" {
-		//Not a valid CORS request
-		return
-	}
+func LogCommonExtendedForwarded(trw *ResponseWriter, r *http.Request) string {
+	return logWithOptions(trw, r, true)
+}
 
-	//Is the HTTP method an OPTIONS request?
-	if r.Method == "OPTIONS" && r.Header.Get("Access-Control-Request-Method") != "" {
-		//Is the Access-Control-Request-Method header valid? Yes...
-		//Does the request have an Access-Control-Request-Header header?
-		if r.Header.Get("Access-Control-Request-Header") != "" {
-			//Is the Access-Control-Request-Header header valid? Yes...
-			w.Header().Set("Access-Control-Allow-Headers", r.Header.Get("Access-Control-Request-Header"))
-		} else {
-			//Set the Access-Control-Allow-Headers response header
-			w.Header().Set("Access-Control-Allow-Headers", "Location, Content-Type, ETag, Accept-Patch")
+func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwardedFor bool) string {
+	remoteAddr := r.RemoteAddr
+	if r.Header.Get("X-Forwarded-For") != "" && useXForwardedFor {
+		if fwds := strings.Split(r.Header.Get("X-Forwarded-For"), ", "); len(fwds) > 0 {
+			remoteAddr = fwds[0]
 		}
-		//Set the Access-Control-Allow-Methods header
-		w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, HEAD, GET, POST, PUT, PATCH, DELETE")
-
-		//Optional Set the Access-Control-Max-Age response header
-		w.Header().Set("Access-Control-Max-Age", "1728000")
-	} else {
-		//Actual Request
-		w.Header().Set("Access-Control-Expose-Headers", "Location, Content-Type, ETag, Accept-Patch")
 	}
-
-	//Set the Access-Control-Allow-Origin header
-	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-	//Are cookies allowed?
-	//w.Header().Set("Access-Control-Allow-Credentials", "true")
+	if remoteHost, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		remoteAddr = remoteHost
+	}
+	if remoteAddr == "" {
+		remoteAddr = "-"
+	}
+	method := r.Method
+	userId := r.Header.Get("X-User-Id")
+	if userId == "" {
+		userId = "-"
+	}
+	clientId := r.Header.Get("X-Client-Id")
+	if clientId == "" {
+		clientId = "-"
+	}
+	referer := r.Referer()
+	if referer == "" {
+		referer = "-"
+	}
+	userAgent := r.UserAgent()
+	if userAgent == "" {
+		userAgent = "-"
+	}
+	return fmt.Sprintf("%v %v %v [%v] \"%v %v %v\" %v %v \"%v\" \"%v\"\n", remoteAddr, clientId, userId, time.Now().UTC().Format(time.RFC3339), method, r.URL.String(), r.Proto, trw.status, trw.length, referer, userAgent)
 }
 
 //BearerAuth is a function that will pull an access token out of the Authorization header

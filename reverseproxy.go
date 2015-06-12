@@ -180,6 +180,7 @@ func (p *GatewayReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 	req.Header.Set("Via", via)
 
 	done := make(chan bool)
+	stop := false
 
 	go func() {
 		defer func() {
@@ -213,12 +214,16 @@ func (p *GatewayReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		if rw.Header().Get("X-Powered-By") == "" {
 			rw.Header().Set("X-Powered-By", "Go/"+runtime.Version())
 		}
+		if stop {
+			return
+		}
 		rw.WriteHeader(res.StatusCode)
 		p.copyResponse(rw, res.Body)
 	}()
 
 	select {
 	case <-closeNotifier.CloseNotify():
+		stop = true
 		transport.CancelRequest(outreq)
 		rw.WriteHeader(499)
 	case <-done:
