@@ -57,13 +57,13 @@ func NewForwardedLoggingHandler(h http.Handler, log io.Writer) http.Handler {
 
 func NewLoggingHandler(h http.Handler, log io.Writer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Header.Del("X-Forwarded-For")
 		r.Header.Del("X-User-Id")
 		r.Header.Del("X-Client-Id")
 		trw := NewResponseWriter(w)
 		origURI := r.URL.RequestURI()
 		h.ServeHTTP(trw, r)
 		r.URL, _ = url.Parse(origURI)
+		r.Header.Del("X-Forwarded-For")
 		fmt.Fprintln(log, trw.LogCommonExtended(r))
 	})
 }
