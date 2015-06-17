@@ -33,8 +33,8 @@ func LogCommonExtendedForwarded(trw *ResponseWriter, r *http.Request) string {
 func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwardedFor bool) string {
 	remoteAddr := r.RemoteAddr
 	if r.Header.Get("X-Forwarded-For") != "" && useXForwardedFor {
-		if fwds := strings.Split(r.Header.Get("X-Forwarded-For"), ", "); len(fwds) > 0 {
-			remoteAddr = fwds[0]
+		if fwds := strings.Split(r.Header.Get("X-Forwarded-For"), ","); len(fwds) > 0 {
+			remoteAddr = strings.TrimSpace(fwds[0])
 		}
 	}
 	if remoteHost, _, err := net.SplitHostPort(remoteAddr); err == nil {

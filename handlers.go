@@ -64,7 +64,7 @@ func NewLoggingHandler(h http.Handler, log io.Writer) http.Handler {
 		h.ServeHTTP(trw, r)
 		r.URL, _ = url.Parse(origURI)
 		r.Header.Del("X-Forwarded-For")
-		fmt.Fprintln(log, trw.LogCommonExtended(r))
+		fmt.Fprint(log, trw.LogCommonExtended(r))
 	})
 }
 
