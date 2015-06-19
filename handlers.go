@@ -63,7 +63,6 @@ func NewLoggingHandler(h http.Handler, log io.Writer) http.Handler {
 		origURI := r.URL.RequestURI()
 		h.ServeHTTP(trw, r)
 		r.URL, _ = url.Parse(origURI)
-		r.Header.Del("X-Forwarded-For")
 		fmt.Fprint(log, trw.LogCommonExtended(r))
 	})
 }

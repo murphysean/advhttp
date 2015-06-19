@@ -30,9 +30,9 @@ func LogCommonExtendedForwarded(trw *ResponseWriter, r *http.Request) string {
 	return logWithOptions(trw, r, true)
 }
 
-func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwardedFor bool) string {
+func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwarded bool) string {
 	remoteAddr := r.RemoteAddr
-	if r.Header.Get("X-Forwarded-For") != "" && useXForwardedFor {
+	if r.Header.Get("X-Forwarded-For") != "" && useXForwarded {
 		if fwds := strings.Split(r.Header.Get("X-Forwarded-For"), ","); len(fwds) > 0 {
 			remoteAddr = strings.TrimSpace(fwds[0])
 		}
@@ -42,6 +42,20 @@ func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwardedFor bool)
 	}
 	if remoteAddr == "" {
 		remoteAddr = "-"
+	}
+	proto := "http"
+	if r.TLS != nil {
+		proto = "https"
+	}
+	if r.Header.Get("X-Forwarded-Proto") != "" && useXForwarded {
+		proto = r.Header.Get("X-Forwarded-Proto")
+	}
+	host := r.Host
+	if r.Header.Get("X-Forwarded-Host") != "" && useXForwarded {
+		host = r.Header.Get("X-Forwarded-Host")
+	}
+	if host == "" {
+		host = "-"
 	}
 	method := r.Method
 	userId := r.Header.Get("X-User-Id")
@@ -60,7 +74,7 @@ func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwardedFor bool)
 	if userAgent == "" {
 		userAgent = "-"
 	}
-	return fmt.Sprintf("%v %v %v [%v] \"%v %v %v\" %v %v \"%v\" \"%v\"\n", remoteAddr, clientId, userId, time.Now().UTC().Format(time.RFC3339), method, r.URL.String(), r.Proto, trw.status, trw.length, referer, userAgent)
+	return fmt.Sprintf("%v %v %v [%v] %v %v \"%v %v %v\" %v %v \"%v\" \"%v\"\n", remoteAddr, clientId, userId, time.Now().UTC().Format(time.RFC3339), proto, host, method, r.URL.String(), r.Proto, trw.status, trw.length, referer, userAgent)
 }
 
 //BearerAuth is a function that will pull an access token out of the Authorization header
