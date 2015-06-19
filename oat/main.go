@@ -14,17 +14,18 @@ import (
 )
 
 const (
-	VERSION = "1.0.0"
+	VERSION = "1.1.0"
 )
 
 var (
 	clients        = make(map[string]*Client)
 	users          = make(map[string]*User)
-	oatClient      = flag.StringP("client", "c", "", "Select the client (by name) from the config to use for this exectution.")
-	oatUser        = flag.StringP("user", "u", "", "Select the user (by name) from the config to use for this execution.")
-	username       = flag.StringP("username", "U", "", "Specify a username that will be used to authenticate and obtain a user access token.")
-	password       = flag.StringP("password", "p", "", "Specify a password that will be used to authenticate and obtain a user access token.")
-	printTokenInfo = flag.BoolP("tokeninfo", "i", false, "Print out the json tokeninfo rather than the token itself.")
+	oatClient      = flag.StringP("client", "c", "", "Select the client (by name) from the config to use for this exectution")
+	oatUser        = flag.StringP("user", "u", "", "Select the user (by name) from the config to use for this execution")
+	oatScope       = flag.StringP("scope", "s", "", "Ask for a different set of scopes than the client default")
+	username       = flag.StringP("username", "U", "", "Specify a username that will be used to authenticate and obtain a user access token")
+	password       = flag.StringP("password", "p", "", "Specify a password that will be used to authenticate and obtain a user access token")
+	printTokenInfo = flag.BoolP("tokeninfo", "i", false, "Print out the json tokeninfo rather than the token itself")
 	nonewline      = flag.BoolP("nonewline", "n", false, "Output the token with (n)o new line")
 	verbose        = flag.BoolP("verbose", "v", false, "Print extra information to stderr")
 )
@@ -47,16 +48,17 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage of %s v%s:\n", os.Args[0], VERSION)
 		fmt.Fprintln(os.Stderr, "oat [--client <client-name>] [--user <user-name>]")
 		fmt.Fprintln(os.Stderr, "\t[--username <username>] [--password <password>]")
+		fmt.Fprintln(os.Stderr, "\t[--scope <space seperated list of scope requests>]")
 		fmt.Fprintln(os.Stderr, "\t[--nonewline] [--tokeninfo]")
-		fmt.Fprintln(os.Stderr, "\t[-c -u -U -p -n -i]")
+		fmt.Fprintln(os.Stderr, "\t[-c -u -s -U -p -n -i]")
 		fmt.Fprintln(os.Stderr, "\t['help']")
 		fmt.Fprintln(os.Stderr, "")
 		flag.PrintDefaults()
 
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "OAT (O Auth Token is a small cli program designed to quickly fetch ")
+		fmt.Fprintln(os.Stderr, "OAT (O Auth Token) is a small cli program designed to quickly fetch ")
 		fmt.Fprintln(os.Stderr, "oauth2 tokens from a server for api access. It uses a config file, ")
-		fmt.Fprintln(os.Stderr, "'.oatconfig', stored in your home directory to select credentials ")
+		fmt.Fprintln(os.Stderr, "'~/.oatconfig', stored in your home directory to select credentials ")
 		fmt.Fprintln(os.Stderr, "to use. The format of the config file is the fairly standard .ini ")
 		fmt.Fprintln(os.Stderr, "format.")
 		fmt.Fprintln(os.Stderr, "")
@@ -157,6 +159,7 @@ func main() {
 
 	var selectedClient *Client = nil
 	var selectedUser *User = nil
+	var selectedScope []string = make([]string, 0)
 
 	selectedClient = clients[*oatClient]
 
@@ -167,7 +170,6 @@ func main() {
 
 	if *verbose {
 		fmt.Fprintf(os.Stderr, "Using Client: %v\n\tid: %v\n\tep: %v\n", *oatClient, selectedClient.Id, selectedClient.Tokenep)
-		fmt.Fprintf(os.Stderr, "Using Scope: \n\t%v\n", strings.Join(selectedClient.Scope, "\n\t"))
 	}
 
 	//If a command line -u is found, use that user, else...
@@ -189,6 +191,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Using User:%v\tusername:%v\n", *oatUser, selectedUser.Username)
 	}
 
+	if *oatScope != "" {
+		selectedScope = strings.Split(*oatScope, " ")
+	} else {
+		selectedScope = selectedClient.Scope
+	}
+
+	if *verbose {
+		fmt.Fprintf(os.Stderr, "Using Scope: \n\t%v\n", strings.Join(selectedScope, "\n\t"))
+	}
+
 	var token string
 	var err error
 	if selectedUser == nil {
@@ -199,9 +211,9 @@ func main() {
 				os.Exit(1)
 			}
 			cURL.User = url.UserPassword(selectedClient.Id, selectedClient.Secret)
-			fmt.Fprintf(os.Stderr, "curl \"%v\" -d 'grant_type=client_credentials' -d 'scope=%v'\n\n", cURL.String(), strings.Join(selectedClient.Scope, " "))
+			fmt.Fprintf(os.Stderr, "curl \"%v\" -d 'grant_type=client_credentials' -d 'scope=%v'\n\n", cURL.String(), strings.Join(selectedScope, " "))
 		}
-		token, _, err = advhttp.GetClientCredentialsToken(selectedClient.Tokenep, selectedClient.Id, selectedClient.Secret, selectedClient.Scope)
+		token, _, err = advhttp.GetClientCredentialsToken(selectedClient.Tokenep, selectedClient.Id, selectedClient.Secret, selectedScope)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -215,9 +227,9 @@ func main() {
 			}
 			cURL.User = url.UserPassword(selectedClient.Id, selectedClient.Secret)
 			fmt.Fprintf(os.Stderr, "curl \"%v\" -d 'grant_type=password' -d 'username=%v' -d 'password=%v' -d 'scope=%v'\n\n",
-				cURL.String(), selectedUser.Username, selectedUser.Password, strings.Join(selectedClient.Scope, " "))
+				cURL.String(), selectedUser.Username, selectedUser.Password, strings.Join(selectedScope, " "))
 		}
-		token, _, _, err = advhttp.GetPasswordToken(selectedClient.Tokenep, selectedClient.Id, selectedClient.Secret, selectedUser.Username, selectedUser.Password, selectedClient.Scope)
+		token, _, _, err = advhttp.GetPasswordToken(selectedClient.Tokenep, selectedClient.Id, selectedClient.Secret, selectedUser.Username, selectedUser.Password, selectedScope)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
