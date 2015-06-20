@@ -9,6 +9,7 @@ can be broken up into the following functionality categories.
 - Logging
 - OAuth2
 - Cross Origin Resource Sharing
+- HTTP Strict Transport Security
 - Reverse Proxy
 
 Handlers
@@ -66,7 +67,7 @@ Cross Origin Resource Sharing
 
 The cors library allows you to set up cors how you'd like, and then
 serve based on that. advhttp comes with a DefaultCors object that
-contains the default cors settings. `advhttp.DefaultCors`. A cors
+contains the default cors settings; `advhttp.DefaultCors`. A cors
 object includes:
 
 - AllowOrigin (string) Default "" meaning to mirror the Origin header
@@ -96,7 +97,37 @@ Or you can use the included handler:
 
 	ch := advhttp.NewDefaultCorsHandler(http.DefaultServeMux)
 	ch.ServeHTTP(w,r)
-	
+
+HTTP Strict Transport Security
+---
+
+The hsts library allows you to set up hsts how you'd like, and then
+serve based on that. hsts comes with a DefaultHsts object that
+contains the default hsts settings; `advhttp.DefaultHsts`. A hsts
+object includes:
+
+- MaxAge (int64) Default advhttp.HstsDefaultMaxAge
+- IncludeSubDomains (bool) Default advhttp.HstsDefaultIncludeSubDomains
+- Preload (bool) Default advhttp.HstsDefaultPreload
+
+You can use the default hsts handler:
+
+	advhttp.ProcessHsts(w,r)
+
+Or you can create your own:
+
+	hsts := new(Hsts)
+	hsts.MaxAge = int64(31536000)
+	hsts.IncludeSubDomains = false
+	hsts.Preload = false
+	hsts.ProcessHsts(w,r)
+
+Or you can use the included handler:
+
+	sh := advhttp.NewDefaultHstsHandler(http.DefaultServeMux)
+	sh.ServeHTTP(w,r)
+
+
 Reverse Proxy
 ---
 

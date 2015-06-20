@@ -7,6 +7,10 @@ import (
 	"net/http"
 )
 
+// The ResponseWriter structure is a wrapper around http.ResponseWriter
+// that provides all the functionality of the respose writer, but adds
+// the ability to track what status was written, as well as the number
+// of bytes that were written as well.
 type ResponseWriter struct {
 	w http.ResponseWriter
 
@@ -14,6 +18,7 @@ type ResponseWriter struct {
 	status int
 }
 
+// Creates a new ResponseWriter wrapping the given http.ResponseWriter
 func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
 	return &ResponseWriter{w: w, length: 0, status: 200}
 }

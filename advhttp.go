@@ -16,6 +16,11 @@ func init() {
 	DefaultCors.ExposeHeaders = CorsDefaultExposeHeaders
 	DefaultCors.MaxAge = CorsDefaultMaxAge
 	DefaultCors.AllowCredentials = CorsDefaultAllowCredentials
+
+	DefaultHsts = new(Hsts)
+	DefaultHsts.MaxAge = HstsDefaultMaxAge
+	DefaultHsts.IncludeSubDomains = HstsDefaultIncludeSubDomains
+	DefaultHsts.Preload = HstsDefaultPreload
 }
 
 func LogApache(trw *ResponseWriter, r *http.Request) string {
@@ -77,10 +82,10 @@ func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwarded bool) st
 	return fmt.Sprintf("%v %v %v [%v] %v %v \"%v %v %v\" %v %v \"%v\" \"%v\"\n", remoteAddr, clientId, userId, time.Now().UTC().Format(time.RFC3339), proto, host, method, r.URL.String(), r.Proto, trw.status, trw.length, referer, userAgent)
 }
 
-//BearerAuth is a function that will pull an access token out of the Authorization header
-//it will return the bearer token if found, and ok will tell you whether it was able to find
-//the token or not. This function will look for the token in the query params, as well as
-//the headers.
+// BearerAuth is a function that will pull an access token out of the Authorization header
+// it will return the bearer token if found, and ok will tell you whether it was able to find
+// the token or not. This function will look for the token in the query params, as well as
+// the headers.
 func BearerAuth(r *http.Request) (bearerToken string, ok bool) {
 	ok = false
 	if values, o := r.URL.Query()["access_token"]; o && len(values) > 0 {
@@ -93,10 +98,10 @@ func BearerAuth(r *http.Request) (bearerToken string, ok bool) {
 	return
 }
 
-//This function will take in the accept header string from a inbound request and determine if
-//application/json is an acceptable response for the request. It ignores any priorities that
-//the requester has, and if they don't include an accept header it will treat it as if they
-//had just used Accept: */*
+// This function will take in the accept header string from a inbound request and determine if
+// application/json is an acceptable response for the request. It ignores any priorities that
+// the requester has, and if they don't include an accept header it will treat it as if they
+// had just used Accept: */*
 func IsJSONAnAcceptableResponse(acceptHeader string) bool {
 	//No accept header (or empty) means */*
 	if acceptHeader == "" {

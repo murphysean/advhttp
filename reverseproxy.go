@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -20,9 +19,33 @@ var onExitFlushLoop func()
 // sends it to another server, proxying the response back to the
 // client.
 type GatewayReverseProxy struct {
-	Name            string
+	// Used by the reverse proxy in the via header
+	// in requests out. You can use this to notify
+	// the servers you are proxying to about the
+	// route the request took on it's way.
+	Name string
+
+	// StripListen path is a boolean that will
+	// remove the 'listening' or 'context'
+	// portion of the request url. This particular
+	// functionality is especially helpful in an
+	// api gateway scenario where you may have
+	// many services you are proxying to. This
+	// way you can expose services with a unique
+	// path, but the service doesn't have to be
+	// aware of that fact at all.
 	StripListenPath bool
-	ListenPath      string
+
+	// Listen path is the begining portion of the
+	// url. For example if you set the listen path
+	// to /service/ and you want that to result in
+	// a call to / on the remote server, you would
+	// set ListenPath to /service, and StripListenPath
+	// to true. Then reverse proxy will rip off the
+	// /service/ portion of the request and call
+	// / on the service.
+	ListenPath string
+
 	// Director must be a function which modifies
 	// the request into a new request to be sent
 	// using Transport. Its response is then copied
@@ -46,6 +69,8 @@ type GatewayReverseProxy struct {
 	ErrorLog *log.Logger
 }
 
+// single joining slash will combine two path portions
+// together into a single path with '/' in the right places.
 func singleJoiningSlash(a, b string) string {
 	aslash := strings.HasSuffix(a, "/")
 	bslash := strings.HasPrefix(b, "/")
@@ -80,7 +105,7 @@ func NewGatewayReverseProxy(target *url.URL, stripListenPath bool, listenPath st
 			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
 		}
 	}
-	return &GatewayReverseProxy{Director: director, StripListenPath: stripListenPath, ListenPath: listenPath}
+	return &GatewayReverseProxy{Name: "advhttp", Director: director, StripListenPath: stripListenPath, ListenPath: listenPath}
 }
 
 func copyHeader(dst, src http.Header) {
@@ -210,9 +235,6 @@ func (p *GatewayReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		//Add back in via if not exists
 		if rw.Header().Get("Via") == "" {
 			rw.Header().Set("Via", via)
-		}
-		if rw.Header().Get("X-Powered-By") == "" {
-			rw.Header().Set("X-Powered-By", "Go/"+runtime.Version())
 		}
 		if stop {
 			return
