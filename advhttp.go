@@ -79,7 +79,7 @@ func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwarded bool) st
 	if userAgent == "" {
 		userAgent = "-"
 	}
-	return fmt.Sprintf("%v %v %v [%v] %v %v \"%v %v %v\" %v %v \"%v\" \"%v\"\n", remoteAddr, clientId, userId, time.Now().UTC().Format(time.RFC3339), proto, host, method, r.URL.String(), r.Proto, trw.status, trw.length, referer, userAgent)
+	return fmt.Sprintf("%v %v %v [%v] %v %v \"%v %v %v\" %v %v \"%v\" \"%v\"\n", remoteAddr, clientId, userId, time.Now().UTC().Format(time.RFC3339Nano), proto, host, method, r.URL.String(), r.Proto, trw.status, trw.length, referer, userAgent)
 }
 
 // BearerAuth is a function that will pull an access token out of the Authorization header
