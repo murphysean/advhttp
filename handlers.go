@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // NewPanicRecoveryHandler will wrap a handler in a recover function that will
@@ -63,9 +64,10 @@ func NewForwardedLoggingHandler(h http.Handler, log io.Writer) http.Handler {
 		r.Header.Del("X-Client-Id")
 		trw := NewResponseWriter(w)
 		origURI := r.URL.RequestURI()
+		start := time.Now()
 		h.ServeHTTP(trw, r)
 		r.URL, _ = url.Parse(origURI)
-		fmt.Fprintln(log, trw.LogCommonExtendedForwarded(r))
+		fmt.Fprintln(log, trw.LogWithOptions(r, true, time.Now().Sub(start)))
 	})
 }
 
@@ -77,14 +79,15 @@ func NewLoggingHandler(h http.Handler, log io.Writer) http.Handler {
 		r.Header.Del("X-Client-Id")
 		trw := NewResponseWriter(w)
 		origURI := r.URL.RequestURI()
+		start := time.Now()
 		h.ServeHTTP(trw, r)
 		r.URL, _ = url.Parse(origURI)
-		fmt.Fprint(log, trw.LogCommonExtended(r))
+		fmt.Fprintln(log, trw.LogWithOptions(r, true, time.Now().Sub(start)))
 	})
 }
 
 // Returns a reverse proxy handler that wraps the GatewayReverseProxy structure and
 // functions to provide api gateway functionality.
-func NewReverseProxyHandler(destinationURL *url.URL, stripListenPath bool, listenPath string) http.Handler {
+func NewReverseProxyHandler(proxyName string, destinationURL *url.URL, stripListenPath bool, listenPath string) http.Handler {
 	return NewGatewayReverseProxy(destinationURL, stripListenPath, listenPath)
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"time"
 )
 
 // The ResponseWriter structure is a wrapper around http.ResponseWriter
@@ -87,4 +88,8 @@ func (trw *ResponseWriter) LogCommonExtended(r *http.Request) string {
 
 func (trw *ResponseWriter) LogCommonExtendedForwarded(r *http.Request) string {
 	return LogCommonExtendedForwarded(trw, r)
+}
+
+func (trw *ResponseWriter) LogWithOptions(r *http.Request, useXForwarded bool, duration time.Duration) string {
+	return LogWithOptions(trw, r, useXForwarded, duration)
 }

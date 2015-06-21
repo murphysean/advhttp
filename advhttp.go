@@ -24,18 +24,22 @@ func init() {
 }
 
 func LogApache(trw *ResponseWriter, r *http.Request) string {
-	return logWithOptions(trw, r, false)
+	return logWithOptions(trw, r, false, 0)
 }
 
 func LogCommonExtended(trw *ResponseWriter, r *http.Request) string {
-	return logWithOptions(trw, r, false)
+	return logWithOptions(trw, r, false, 0)
 }
 
 func LogCommonExtendedForwarded(trw *ResponseWriter, r *http.Request) string {
-	return logWithOptions(trw, r, true)
+	return logWithOptions(trw, r, true, 0)
 }
 
-func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwarded bool) string {
+func LogWithOptions(trw *ResponseWriter, r *http.Request, useXForwarded bool, duration time.Duration) string {
+	return logWithOptions(trw, r, useXForwarded, duration)
+}
+
+func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwarded bool, duration time.Duration) string {
 	remoteAddr := r.RemoteAddr
 	if r.Header.Get("X-Forwarded-For") != "" && useXForwarded {
 		if fwds := strings.Split(r.Header.Get("X-Forwarded-For"), ","); len(fwds) > 0 {
@@ -71,6 +75,10 @@ func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwarded bool) st
 	if clientId == "" {
 		clientId = "-"
 	}
+	dur := "-"
+	if duration != 0 {
+		dur = duration.String()
+	}
 	referer := r.Referer()
 	if referer == "" {
 		referer = "-"
@@ -79,7 +87,7 @@ func logWithOptions(trw *ResponseWriter, r *http.Request, useXForwarded bool) st
 	if userAgent == "" {
 		userAgent = "-"
 	}
-	return fmt.Sprintf("%v %v %v [%v] %v %v \"%v %v %v\" %v %v \"%v\" \"%v\"\n", remoteAddr, clientId, userId, time.Now().UTC().Format(time.RFC3339Nano), proto, host, method, r.URL.String(), r.Proto, trw.status, trw.length, referer, userAgent)
+	return fmt.Sprintf("%v %v %v [%v] %v %v \"%v %v %v\" %v %v %v \"%v\" \"%v\"\n", remoteAddr, clientId, userId, time.Now().UTC().Format(time.RFC3339Nano), proto, host, method, r.URL.String(), r.Proto, trw.status, trw.length, dur, referer, userAgent)
 }
 
 // BearerAuth is a function that will pull an access token out of the Authorization header
