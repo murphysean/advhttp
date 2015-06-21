@@ -234,7 +234,9 @@ func (p *GatewayReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		}
 		//Add back in via if not exists
 		if rw.Header().Get("Via") == "" {
-			rw.Header().Set("Via", via)
+			rw.Header().Set("Via", p.Name)
+		} else {
+			rw.Header().Set("Via", p.Name+", "+rw.Header().Get("Via"))
 		}
 		if stop {
 			return

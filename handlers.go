@@ -89,5 +89,7 @@ func NewLoggingHandler(h http.Handler, log io.Writer) http.Handler {
 // Returns a reverse proxy handler that wraps the GatewayReverseProxy structure and
 // functions to provide api gateway functionality.
 func NewReverseProxyHandler(proxyName string, destinationURL *url.URL, stripListenPath bool, listenPath string) http.Handler {
-	return NewGatewayReverseProxy(destinationURL, stripListenPath, listenPath)
+	grp := NewGatewayReverseProxy(destinationURL, stripListenPath, listenPath)
+	grp.Name = proxyName
+	return grp
 }
