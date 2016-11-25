@@ -85,11 +85,3 @@ func NewLoggingHandler(h http.Handler, log io.Writer) http.Handler {
 		fmt.Fprintln(log, trw.LogWithOptions(r, true, time.Now().Sub(start)))
 	})
 }
-
-// Returns a reverse proxy handler that wraps the GatewayReverseProxy structure and
-// functions to provide api gateway functionality.
-func NewReverseProxyHandler(proxyName string, destinationURL *url.URL, stripListenPath bool, listenPath string) http.Handler {
-	grp := NewGatewayReverseProxy(destinationURL, stripListenPath, listenPath)
-	grp.Name = proxyName
-	return grp
-}
