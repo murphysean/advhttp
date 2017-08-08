@@ -15,6 +15,7 @@ import (
 // constantly
 type TokenTracker struct {
 	method            string
+	deviceEndpoint    string
 	tokenEndpoint     string
 	tokenInfoEndpoint string
 	clientId          string
@@ -24,6 +25,21 @@ type TokenTracker struct {
 	token             string
 	tokenExpires      time.Time
 	tokenInfo         map[string]interface{}
+}
+
+func NewRefreshTokenTracker(tokenEndpoint, tokenInfoEndpoint, client_id, client_secret, refreshToken string, scope []string) (tokenTracker *TokenTracker, err error) {
+	tokenTracker = new(TokenTracker)
+	tokenTracker.method = "refresh"
+	tokenTracker.tokenEndpoint = tokenEndpoint
+	tokenTracker.tokenInfoEndpoint = tokenInfoEndpoint
+	tokenTracker.refreshToken = refreshToken
+	tokenTracker.clientId = client_id
+	tokenTracker.clientSecret = client_secret
+	tokenTracker.scope = scope
+
+	tokenTracker.token, tokenTracker.tokenExpires, err = GetRefreshToken(tokenEndpoint, client_id, client_secret, refreshToken, scope)
+
+	return
 }
 
 // This method will return a new TokenTracker set up to cache and obtain new tokens in behalf
