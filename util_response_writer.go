@@ -35,11 +35,13 @@ func NewRewriteLocationHeaderCallback(prefix string) func(http.Header) {
 	return func(headers http.Header) {
 		oldLocation := headers.Get("Location")
 		if oldLocation != "" {
-			if strings.HasPrefix(oldLocation, "/") {
-				if strings.HasSuffix(oldLocation, "/") {
-					headers.Set("Location", path.Join(prefix, oldLocation)+"/")
-				} else {
-					headers.Set("Location", path.Join(prefix, oldLocation))
+			if oldLocation != "/" {
+				if strings.HasPrefix(oldLocation, "/") {
+					if strings.HasSuffix(oldLocation, "/") {
+						headers.Set("Location", path.Join(prefix, oldLocation)+"/")
+					} else {
+						headers.Set("Location", path.Join(prefix, oldLocation))
+					}
 				}
 			}
 		}
